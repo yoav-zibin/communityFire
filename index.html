@@ -1,0 +1,63 @@
+<html ng-app="MyApp" lang="en" >
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Angular Material style sheet -->
+  <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.css">
+  <link rel="stylesheet" href="css/main.css">
+
+  <!-- Angular Material requires Angular.js Libraries -->
+  <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-route.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-animate.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-aria.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular-messages.js"></script>
+
+  <!-- Angular Material Library -->
+  <script src="http://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.js"></script>
+  
+  <script src="https://www.gstatic.com/firebasejs/3.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/3.6.1/firebase-database.js"></script>
+
+  <!-- Your application  -->
+  <script src="ts_output_readonly_do_NOT_change_manually/src/log.js"></script>
+  <script src="ts_output_readonly_do_NOT_change_manually/src/messageSender.js"></script>
+  <script src="ts_output_readonly_do_NOT_change_manually/src/main.js"></script>
+  
+
+<script type="text/ng-template" id="html-templates/playPage.html">
+<md-toolbar>
+  Play page!
+</md-toolbar>
+</script>
+
+<script type="text/ng-template" id="html-templates/mainPage.html">
+<md-toolbar>
+  <div class="md-toolbar-tools">
+    <img ng-src="{{main.myPlayerInfo.avatarImageUrl}}"
+              alt="Your avatar" 
+              class="avatar">
+    <h3>Hi {{main.myPlayerInfo.displayName}}! (You play {{main.myPlayerInfo.myCommunityPlayerIndex == 0 ? 'Black' : 'White'}})</h3>
+  </div>
+</md-toolbar>
+
+  <md-content flex>
+    <md-list>
+      <md-list-item 
+          ng-click="main.gotoPlayPage($index)" 
+          ng-repeat="match in main.matches track by $index">
+        <p>{{match.matchName}} {{main.isYourTurn(match) ? "(your turn)" : ""}}</p>
+      </md-list-item>
+    </md-list>
+  </md-content>
+</script>
+
+</head>
+<body ng-cloak>
+  
+  <div ng-view class="full_screen"></div> 
+  <div ng-show="main.showGameIframe()" id="game_container">
+    <iframe id="game_iframe" src="https://yoav-zibin.github.io/smpgWEIQI/index.html" seamless="seamless"></iframe>
+  </div>
+  
+</body>
+</html>
