@@ -16,7 +16,8 @@ var gamingPlatform;
         // Saving as json because firebase has restriction on keys (and we use "data: any").
         // Example error: Firebase.set failed: First argument  contains an invalid key (playerId0.5446834512026781) in property 'matches.0.playerIdToProposal'.  Keys must be non-empty strings and can't contain ".", "#", "$", "/", "[", or "]"
         // Another weird thing: For some reason firebase stores "{}" as null (for playerIdToProposal).
-        var matchesRef = firebase.database().ref("matchesJson2");
+        // Some teams corrupted the data, so I changed the ref name.
+        var matchesRef = firebase.database().ref("matchesJson3");
         matchesRef.on('value', function (snapshot) {
             gamingPlatform.$timeout(function () {
                 var matchesJson = snapshot.val();
