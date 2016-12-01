@@ -73,7 +73,7 @@ export module main {
   // Example error: Firebase.set failed: First argument  contains an invalid key (playerId0.5446834512026781) in property 'matches.0.playerIdToProposal'.  Keys must be non-empty strings and can't contain ".", "#", "$", "/", "[", or "]"
   // Another weird thing: For some reason firebase stores "{}" as null (for playerIdToProposal).
   // Some teams corrupted the data, so I changed the ref name.
-  let matchesRef = firebase.database().ref("matchesJson3");
+  let matchesRef = firebase.database().ref("matchesJson5");
   matchesRef.on('value', function(snapshot: any) {
     $timeout(()=> {
       let matchesJson = snapshot.val();
