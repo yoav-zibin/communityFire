@@ -89,14 +89,12 @@ export module main {
   });
 
   export let indexToChatMsgs: ChatMsg[][] = [];
-  let chatRef = firebase.database().ref("chatMessagesJson");
-  matchesRef.on('value', function(snapshot: any) {
+  let chatRef = firebase.database().ref("indexToChatMsgs");
+  chatRef.on('value', function(snapshot: any) {
     $timeout(()=> {
-      let chatMessagesJson = snapshot.val();
-      if (chatMessagesJson) {
-        indexToChatMsgs = chatMessagesJson;
-        if (typeof indexToChatMsgs != "object") indexToChatMsgs = [];
-      }
+      indexToChatMsgs = snapshot.val();
+      log.info("indexToChatMsgs=", indexToChatMsgs);
+      if (!indexToChatMsgs) indexToChatMsgs = [];
     });
   });
 
@@ -108,7 +106,11 @@ export module main {
         location.search.indexOf('playWhite') != -1 ? 1 : 
         Math.random() > 0.5 ? 0 : 1;
 
-  export let myPlayerInfo: IPlayerInfo = null;
+  export let myPlayerInfo: IPlayerInfo = location.protocol == "file:" ? {
+    avatarImageUrl: "http://graph.facebook.com/10154287448416125/picture?square=square",
+    displayName:"Test player " + Math.floor(1000*Math.random()),
+    playerId: "playerId" + Math.random()
+  }: null;
 
   function storeMatches() {
     matchesRef.set(angular.toJson(matches));
@@ -260,7 +262,7 @@ export module main {
       let move: IMove = communityMove.move;
 
       let match = matches[currentMatchIndex];
-      let chatMsg:ChatMsg = {chat: proposal.chatDescription, fromPlayer: proposal.playerInfo};
+      let chatMsg:ChatMsg = {chat: "Played the move: " + proposal.chatDescription, fromPlayer: proposal.playerInfo};
       addChatMsg(chatMsg);
       if (move) {
         match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
@@ -290,17 +292,15 @@ export module main {
   }
 
   firebase.auth().onAuthStateChanged(function(user: any) {
-    if (user) {
-      // User is signed in.
-      myPlayerInfo = {
-        avatarImageUrl: user.photoURL,
-        displayName: user.displayName,
-        playerId: user.uid,
-      };
-      log.alwaysLog("myPlayerInfo=", myPlayerInfo);
-    } else {
-      myPlayerInfo = null;
-    }
+    if (!user) return;
+    // User is signed in.
+    myPlayerInfo = {
+      avatarImageUrl: user.photoURL,
+      displayName: user.displayName,
+      playerId: user.uid,
+    };
+    log.alwaysLog("myPlayerInfo=", myPlayerInfo);
+    if ($rootScope) $rootScope.$apply();
   });
 
   angular.module('MyApp', ['ngMaterial', 'ngRoute'])

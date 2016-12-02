@@ -34,15 +34,13 @@ var gamingPlatform;
             });
         });
         main.indexToChatMsgs = [];
-        var chatRef = firebase.database().ref("chatMessagesJson");
-        matchesRef.on('value', function (snapshot) {
+        var chatRef = firebase.database().ref("indexToChatMsgs");
+        chatRef.on('value', function (snapshot) {
             gamingPlatform.$timeout(function () {
-                var chatMessagesJson = snapshot.val();
-                if (chatMessagesJson) {
-                    main.indexToChatMsgs = chatMessagesJson;
-                    if (typeof main.indexToChatMsgs != "object")
-                        main.indexToChatMsgs = [];
-                }
+                main.indexToChatMsgs = snapshot.val();
+                gamingPlatform.log.info("indexToChatMsgs=", main.indexToChatMsgs);
+                if (!main.indexToChatMsgs)
+                    main.indexToChatMsgs = [];
             });
         });
         function getChatMsgs() {
@@ -52,7 +50,11 @@ var gamingPlatform;
         main.myCommunityPlayerIndex = location.search.indexOf('playBlack') != -1 ? 0 :
             location.search.indexOf('playWhite') != -1 ? 1 :
                 Math.random() > 0.5 ? 0 : 1;
-        main.myPlayerInfo = null;
+        main.myPlayerInfo = location.protocol == "file:" ? {
+            avatarImageUrl: "http://graph.facebook.com/10154287448416125/picture?square=square",
+            displayName: "Test player " + Math.floor(1000 * Math.random()),
+            playerId: "playerId" + Math.random()
+        } : null;
         function storeMatches() {
             matchesRef.set(angular.toJson(main.matches));
         }
@@ -201,7 +203,7 @@ var gamingPlatform;
                 var proposal = communityMove.proposal;
                 var move = communityMove.move;
                 var match = main.matches[currentMatchIndex];
-                var chatMsg = { chat: proposal.chatDescription, fromPlayer: proposal.playerInfo };
+                var chatMsg = { chat: "Played the move: " + proposal.chatDescription, fromPlayer: proposal.playerInfo };
                 addChatMsg(chatMsg);
                 if (move) {
                     match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
@@ -231,18 +233,17 @@ var gamingPlatform;
         }
         main.googleLogin = googleLogin;
         firebase.auth().onAuthStateChanged(function (user) {
-            if (user) {
-                // User is signed in.
-                main.myPlayerInfo = {
-                    avatarImageUrl: user.photoURL,
-                    displayName: user.displayName,
-                    playerId: user.uid,
-                };
-                gamingPlatform.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
-            }
-            else {
-                main.myPlayerInfo = null;
-            }
+            if (!user)
+                return;
+            // User is signed in.
+            main.myPlayerInfo = {
+                avatarImageUrl: user.photoURL,
+                displayName: user.displayName,
+                playerId: user.uid,
+            };
+            gamingPlatform.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
+            if (gamingPlatform.$rootScope)
+                gamingPlatform.$rootScope.$apply();
         });
         angular.module('MyApp', ['ngMaterial', 'ngRoute'])
             .config(['$routeProvider', function ($routeProvider) {
