@@ -37,13 +37,13 @@ interface IProposals {
   [playerId: string]: IProposal;
 }
 
-interface MyPlayerInfo extends IPlayerInfo {
-  myCommunityPlayerIndex: number;
-}
-
 interface ICommunityMatch extends IStateTransition {
   matchName: string;
   playerIdToProposal: IProposals; 
+}
+interface ChatMsg {
+  chat: string;
+  fromPlayer: IPlayerInfo;
 }
 
 export let $rootScope: angular.IScope;
@@ -77,6 +77,7 @@ export module main {
   matchesRef.on('value', function(snapshot: any) {
     $timeout(()=> {
       let matchesJson = snapshot.val();
+      log.info("matchesJson=", matchesJson);
       if (!matchesJson) {
         matches = createCommunityMatches(); 
         storeMatches();
@@ -87,27 +88,33 @@ export module main {
     });
   });
 
-  export let myPlayerInfo: MyPlayerInfo = getMyPlayerInfo();
-  log.alwaysLog("myPlayerInfo=", myPlayerInfo);
+  export let indexToChatMsgs: ChatMsg[][] = [];
+  let chatRef = firebase.database().ref("chatMessagesJson");
+  matchesRef.on('value', function(snapshot: any) {
+    $timeout(()=> {
+      let chatMessagesJson = snapshot.val();
+      if (chatMessagesJson) {
+        indexToChatMsgs = chatMessagesJson;
+        if (typeof indexToChatMsgs != "object") indexToChatMsgs = [];
+      }
+    });
+  });
 
-  function getMyPlayerInfo() {
-    let myPlayerInfoJson = localStorage.getItem("myPlayerInfoJson");
-    if (myPlayerInfoJson) return angular.fromJson(myPlayerInfoJson);
-    myPlayerInfo = {
-      avatarImageUrl: "http://graph.facebook.com/10154287448416125/picture?square=square",
-      displayName: "Guest player " + (1+Math.floor(999*Math.random())),
-      myCommunityPlayerIndex: 
-        location.search.indexOf('playBlack') != -1 ? 0 :
-        location.search.indexOf('playWhite') != -1 ? 1 : 
-        Math.random() > 0.5 ? 0 : 1,
-      playerId: "playerId" + Math.floor(1000000*Math.random()),
-    };
-    localStorage.setItem("myPlayerInfoJson", angular.toJson(myPlayerInfo));
-    return myPlayerInfo;
+  export function getChatMsgs() {
+    return indexToChatMsgs[currentMatchIndex] ? indexToChatMsgs[currentMatchIndex] : [];
   }
+
+  export let myCommunityPlayerIndex = location.search.indexOf('playBlack') != -1 ? 0 :
+        location.search.indexOf('playWhite') != -1 ? 1 : 
+        Math.random() > 0.5 ? 0 : 1;
+
+  export let myPlayerInfo: IPlayerInfo = null;
 
   function storeMatches() {
     matchesRef.set(angular.toJson(matches));
+  }
+  function storeChat() {
+    chatRef.set(indexToChatMsgs);
   }
 
   function createCommunityMatches(): ICommunityMatch[] {
@@ -161,16 +168,40 @@ export module main {
   export function gotoPlayPage(matchIndex: number) {
     changePage('/playGame/' + matchIndex);
   }
+  export function gotoMainPage() {
+    changePage('/main');
+  }
+  
+  export let chatMessage = "";
+  export function sendChat() {
+    addChatMsg({chat: chatMessage, fromPlayer: myPlayerInfo});
+    chatMessage = "";
+  }
+  function addChatMsg(chatMsg: ChatMsg) {
+    if (!indexToChatMsgs[currentMatchIndex]) indexToChatMsgs[currentMatchIndex] = [];
+    let chatMsgs = indexToChatMsgs[currentMatchIndex]; 
+    chatMsgs.unshift(chatMsg);
+    if (chatMsgs.length > 100) chatMsgs.pop();
+    storeChat();
+  }
+
+  export let isChatShowing = false;
+  export function toggleChat() {
+    isChatShowing = !isChatShowing;
+  }
   
   export function isYourTurn(match: ICommunityMatch) {
-    return match.move.turnIndexAfterMove == myPlayerInfo.myCommunityPlayerIndex &&
+    return match.move.turnIndexAfterMove == myCommunityPlayerIndex &&
         !match.playerIdToProposal[myPlayerInfo.playerId];
   }
 
   let currentMatchIndex: number = null;
+  export function getCurrentMatch() {
+    return matches[currentMatchIndex];
+  }
   export function loadMatch(matchIndex: number) {
     let match = matches[matchIndex];
-    if (!match) {
+    if (!match || !myPlayerInfo) {
       log.warn("Couldn't find matchIndex=", matchIndex);
       changePage('/main');
       return;
@@ -183,7 +214,7 @@ export module main {
   function sendCommunityUI() {
     let match = matches[currentMatchIndex];
     let communityUI: ICommunityUI = {
-      yourPlayerIndex: myPlayerInfo.myCommunityPlayerIndex,
+      yourPlayerIndex: myCommunityPlayerIndex,
       yourPlayerInfo: myPlayerInfo,
       playerIdToProposal: match.playerIdToProposal,
       numberOfPlayers: match.numberOfPlayers,
@@ -228,8 +259,9 @@ export module main {
       let proposal: IProposal = communityMove.proposal;
       let move: IMove = communityMove.move;
 
-      let match = matches[currentMatchIndex];      
-      // TODO: add proposal.chatDescription + proposal.playerInfo (avatar+displayName) to the group chat.
+      let match = matches[currentMatchIndex];
+      let chatMsg:ChatMsg = {chat: proposal.chatDescription, fromPlayer: proposal.playerInfo};
+      addChatMsg(chatMsg);
       if (move) {
         match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
         match.stateBeforeMove = match.move.stateAfterMove;
@@ -241,6 +273,34 @@ export module main {
       storeMatches();
       sendCommunityUI();
     });
+  });
+
+  export function googleLogin() {
+    var provider = new firebase.auth.GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/plus.login');
+    firebase.auth().signInWithPopup(provider).then(function(result: any) {
+      // This gives you a Google Access Token. You can use it to access the Google API.
+      var token = result.credential.accessToken;
+      // The signed-in user info.
+      var user = result.user;
+      log.info("Google login succeeded: ", token, user);
+    }).catch(function(error: any) {
+      log.error("Google login failed: ", error);
+    });
+  }
+
+  firebase.auth().onAuthStateChanged(function(user: any) {
+    if (user) {
+      // User is signed in.
+      myPlayerInfo = {
+        avatarImageUrl: user.photoURL,
+        displayName: user.displayName,
+        playerId: user.uid,
+      };
+      log.alwaysLog("myPlayerInfo=", myPlayerInfo);
+    } else {
+      myPlayerInfo = null;
+    }
   });
 
   angular.module('MyApp', ['ngMaterial', 'ngRoute'])

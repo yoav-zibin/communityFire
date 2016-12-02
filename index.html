@@ -4,6 +4,8 @@
   <!-- Angular Material style sheet -->
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.css">
   <link rel="stylesheet" href="css/main.css">
+  <!-- https://google.github.io/material-design-icons/ -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
   <!-- Angular Material requires Angular.js Libraries -->
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.5/angular.js"></script>
@@ -16,6 +18,7 @@
   <script src="https://ajax.googleapis.com/ajax/libs/angular_material/1.1.0/angular-material.js"></script>
   
   <script src="https://www.gstatic.com/firebasejs/3.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/3.6.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/3.6.1/firebase-database.js"></script>
 
   <!-- Your application  -->
@@ -26,20 +29,70 @@
 
 <script type="text/ng-template" id="html-templates/playPage.html">
 <md-toolbar>
-  Play page!
+  <div class="md-toolbar-tools">
+    <md-button
+        ng-click="main.gotoMainPage()" 
+        class="md-icon-button">
+      <md-icon class="material-icons">arrow_back</md-icon>
+    </md-button>
+    <h2 style="margin: 0 10px 0 0;">
+      {{main.getCurrentMatch().matchName}}
+    </h2>
+    <span flex></span>
+    <md-button 
+        ng-click="main.toggleChat()"
+        class="md-icon-button">
+      <md-icon class="material-icons">chat</md-icon>
+    </md-button>
+  </div>
 </md-toolbar>
+<div class="chat_container below_toolbar" ng-if="main.isChatShowing">
+  <md-input-container class="md-icon-right md-block" style>
+    <label>Type in a chat message</label>
+    <input 
+        md-autofocus
+        ng-model="main.chatMessage"
+        ng-keyup="$event.keyCode == 13 && main.sendChat()"
+        maxlength="140">
+    <md-icon class="material-icons"
+        ng-click="main.sendChat()">
+      send</md-icon>
+  </md-input-container>
+  <md-content class="chat_lines">
+    <md-list>
+      <md-list-item class="md-2-line _md-no-proxy" 
+          ng-repeat="chatMsg in main.getChatMsgs() track by $index">
+          <img class="md-avatar"
+                width="40" height="40"
+                ng-src="{{chatMsg.fromPlayer.avatarImageUrl}}">
+          <div class="md-list-item-text" layout="column">
+            <h3>{{chatMsg.fromPlayer.displayName}}</h3>
+            <p>
+              {{chatMsg.chat}}
+            </p>
+          </div>
+      </md-list-item>
+    </md-list>
+  </md-content>
+</div>
 </script>
 
 <script type="text/ng-template" id="html-templates/mainPage.html">
-<md-toolbar>
-  <div class="md-toolbar-tools">
-    <img ng-src="{{main.myPlayerInfo.avatarImageUrl}}"
-              alt="Your avatar" 
-              class="avatar">
-    <h3>Hi {{main.myPlayerInfo.displayName}}! (You play {{main.myPlayerInfo.myCommunityPlayerIndex == 0 ? 'Black' : 'White'}})</h3>
-  </div>
-</md-toolbar>
-
+<div class="full_screen" ng-if="!main.myPlayerInfo">
+  <md-button 
+      ng-click="main.googleLogin()">
+    Sign in with Google
+  </md-button>
+</div>
+<div class="full_screen" ng-if="main.myPlayerInfo">
+  <md-toolbar>
+    <div class="md-toolbar-tools">
+      <img ng-src="{{main.myPlayerInfo.avatarImageUrl}}"
+                alt="Your avatar" 
+                class="avatar">
+      <h3>Hi {{main.myPlayerInfo.displayName}}! (You play {{main.myCommunityPlayerIndex == 0 ? 'Black' : 'White'}})</h3>
+    </div>
+  </md-toolbar>
   <md-content flex>
     <md-list>
       <md-list-item 
@@ -49,13 +102,14 @@
       </md-list-item>
     </md-list>
   </md-content>
+</div>
 </script>
 
 </head>
 <body ng-cloak>
   
   <div ng-view class="full_screen"></div> 
-  <div ng-show="main.showGameIframe()" id="game_container">
+  <div ng-show="main.showGameIframe()" class="game_container below_toolbar">
     <iframe id="game_iframe" src="https://yoav-zibin.github.io/smpgWEIQI/index.html" seamless="seamless"></iframe>
   </div>
   

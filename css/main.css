@@ -5,17 +5,35 @@
   height: 100%;
   width: 100%;
 }
-#game_container {
-  top: 64px;
+.game_container {
   width: 100%;
   height: auto;
-  position: absolute;
   z-index: 58;
   bottom: 0;
 }
+.below_toolbar {
+  top: 64px;
+  position: absolute;
+}
 @media (min-width: 0) and (max-width: 959px) and (orientation: portrait) {
-  #game_container {
+  .below_toolbar {
     top: 56px; } }
+
+.chat_container {
+  bottom: 0; left: 0; right: 0;
+  z-index: 59;
+  background-color: rgba(250, 250, 250, 0.6);
+}
+.chat_lines {
+  background-color: rgba(250, 250, 250, 0.6);
+  left: 0;
+  right: 0;
+  top: 58px;
+  bottom: 0;
+  position: absolute;
+  -webkit-overflow-scrolling: touch;
+  overflow-y: scroll;
+}
 
 #game_iframe {
   width: 100%;

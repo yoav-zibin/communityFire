@@ -21,6 +21,7 @@ var gamingPlatform;
         matchesRef.on('value', function (snapshot) {
             gamingPlatform.$timeout(function () {
                 var matchesJson = snapshot.val();
+                gamingPlatform.log.info("matchesJson=", matchesJson);
                 if (!matchesJson) {
                     main.matches = createCommunityMatches();
                     storeMatches();
@@ -32,25 +33,31 @@ var gamingPlatform;
                 }
             });
         });
-        main.myPlayerInfo = getMyPlayerInfo();
-        gamingPlatform.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
-        function getMyPlayerInfo() {
-            var myPlayerInfoJson = localStorage.getItem("myPlayerInfoJson");
-            if (myPlayerInfoJson)
-                return angular.fromJson(myPlayerInfoJson);
-            main.myPlayerInfo = {
-                avatarImageUrl: "http://graph.facebook.com/10154287448416125/picture?square=square",
-                displayName: "Guest player " + (1 + Math.floor(999 * Math.random())),
-                myCommunityPlayerIndex: location.search.indexOf('playBlack') != -1 ? 0 :
-                    location.search.indexOf('playWhite') != -1 ? 1 :
-                        Math.random() > 0.5 ? 0 : 1,
-                playerId: "playerId" + Math.floor(1000000 * Math.random()),
-            };
-            localStorage.setItem("myPlayerInfoJson", angular.toJson(main.myPlayerInfo));
-            return main.myPlayerInfo;
+        main.indexToChatMsgs = [];
+        var chatRef = firebase.database().ref("chatMessagesJson");
+        matchesRef.on('value', function (snapshot) {
+            gamingPlatform.$timeout(function () {
+                var chatMessagesJson = snapshot.val();
+                if (chatMessagesJson) {
+                    main.indexToChatMsgs = chatMessagesJson;
+                    if (typeof main.indexToChatMsgs != "object")
+                        main.indexToChatMsgs = [];
+                }
+            });
+        });
+        function getChatMsgs() {
+            return main.indexToChatMsgs[currentMatchIndex] ? main.indexToChatMsgs[currentMatchIndex] : [];
         }
+        main.getChatMsgs = getChatMsgs;
+        main.myCommunityPlayerIndex = location.search.indexOf('playBlack') != -1 ? 0 :
+            location.search.indexOf('playWhite') != -1 ? 1 :
+                Math.random() > 0.5 ? 0 : 1;
+        main.myPlayerInfo = null;
         function storeMatches() {
             matchesRef.set(angular.toJson(main.matches));
+        }
+        function storeChat() {
+            chatRef.set(main.indexToChatMsgs);
         }
         function createCommunityMatches() {
             return [
@@ -102,15 +109,43 @@ var gamingPlatform;
             changePage('/playGame/' + matchIndex);
         }
         main.gotoPlayPage = gotoPlayPage;
+        function gotoMainPage() {
+            changePage('/main');
+        }
+        main.gotoMainPage = gotoMainPage;
+        main.chatMessage = "";
+        function sendChat() {
+            addChatMsg({ chat: main.chatMessage, fromPlayer: main.myPlayerInfo });
+            main.chatMessage = "";
+        }
+        main.sendChat = sendChat;
+        function addChatMsg(chatMsg) {
+            if (!main.indexToChatMsgs[currentMatchIndex])
+                main.indexToChatMsgs[currentMatchIndex] = [];
+            var chatMsgs = main.indexToChatMsgs[currentMatchIndex];
+            chatMsgs.unshift(chatMsg);
+            if (chatMsgs.length > 100)
+                chatMsgs.pop();
+            storeChat();
+        }
+        main.isChatShowing = false;
+        function toggleChat() {
+            main.isChatShowing = !main.isChatShowing;
+        }
+        main.toggleChat = toggleChat;
         function isYourTurn(match) {
-            return match.move.turnIndexAfterMove == main.myPlayerInfo.myCommunityPlayerIndex &&
+            return match.move.turnIndexAfterMove == main.myCommunityPlayerIndex &&
                 !match.playerIdToProposal[main.myPlayerInfo.playerId];
         }
         main.isYourTurn = isYourTurn;
         var currentMatchIndex = null;
+        function getCurrentMatch() {
+            return main.matches[currentMatchIndex];
+        }
+        main.getCurrentMatch = getCurrentMatch;
         function loadMatch(matchIndex) {
             var match = main.matches[matchIndex];
-            if (!match) {
+            if (!match || !main.myPlayerInfo) {
                 gamingPlatform.log.warn("Couldn't find matchIndex=", matchIndex);
                 changePage('/main');
                 return;
@@ -123,7 +158,7 @@ var gamingPlatform;
         function sendCommunityUI() {
             var match = main.matches[currentMatchIndex];
             var communityUI = {
-                yourPlayerIndex: main.myPlayerInfo.myCommunityPlayerIndex,
+                yourPlayerIndex: main.myCommunityPlayerIndex,
                 yourPlayerInfo: main.myPlayerInfo,
                 playerIdToProposal: match.playerIdToProposal,
                 numberOfPlayers: match.numberOfPlayers,
@@ -166,7 +201,8 @@ var gamingPlatform;
                 var proposal = communityMove.proposal;
                 var move = communityMove.move;
                 var match = main.matches[currentMatchIndex];
-                // TODO: add proposal.chatDescription + proposal.playerInfo (avatar+displayName) to the group chat.
+                var chatMsg = { chat: proposal.chatDescription, fromPlayer: proposal.playerInfo };
+                addChatMsg(chatMsg);
                 if (move) {
                     match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
                     match.stateBeforeMove = match.move.stateAfterMove;
@@ -179,6 +215,34 @@ var gamingPlatform;
                 storeMatches();
                 sendCommunityUI();
             });
+        });
+        function googleLogin() {
+            var provider = new firebase.auth.GoogleAuthProvider();
+            provider.addScope('https://www.googleapis.com/auth/plus.login');
+            firebase.auth().signInWithPopup(provider).then(function (result) {
+                // This gives you a Google Access Token. You can use it to access the Google API.
+                var token = result.credential.accessToken;
+                // The signed-in user info.
+                var user = result.user;
+                gamingPlatform.log.info("Google login succeeded: ", token, user);
+            }).catch(function (error) {
+                gamingPlatform.log.error("Google login failed: ", error);
+            });
+        }
+        main.googleLogin = googleLogin;
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (user) {
+                // User is signed in.
+                main.myPlayerInfo = {
+                    avatarImageUrl: user.photoURL,
+                    displayName: user.displayName,
+                    playerId: user.uid,
+                };
+                gamingPlatform.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
+            }
+            else {
+                main.myPlayerInfo = null;
+            }
         });
         angular.module('MyApp', ['ngMaterial', 'ngRoute'])
             .config(['$routeProvider', function ($routeProvider) {
