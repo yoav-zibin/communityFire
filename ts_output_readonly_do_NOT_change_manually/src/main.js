@@ -2,7 +2,7 @@ var gamingPlatform;
 (function (gamingPlatform) {
     var main;
     (function (main) {
-        // Feel free to change to your own Firebase URL :)
+        // TODO: change to your own Firebase URL! To avoid messing up the data for other students.
         // Initialize Firebase
         var config = {
             apiKey: "AIzaSyDvbUblHfA5eJe5sK1Xy-xC_tfV4y4PgQE",
