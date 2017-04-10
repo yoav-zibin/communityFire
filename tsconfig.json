@@ -32,6 +32,7 @@
     },
     "files": [
         "./typings/index.d.ts",
+        "./typings/multiplayer-games.d.ts",
         "./src/log.ts",
         "./src/messageSender.ts",
         "./src/main.ts"

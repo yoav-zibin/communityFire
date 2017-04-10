@@ -1,5 +1,5 @@
-var gamingPlatform;
-(function (gamingPlatform) {
+var communityFire;
+(function (communityFire) {
     var main;
     (function (main) {
         // TODO: change to your own Firebase URL! To avoid messing up the data for other students.
@@ -19,9 +19,9 @@ var gamingPlatform;
         // Some teams corrupted the data, so I changed the ref name.
         var matchesRef = firebase.database().ref("matchesJson5");
         matchesRef.on('value', function (snapshot) {
-            gamingPlatform.$timeout(function () {
+            communityFire.$timeout(function () {
                 var matchesJson = snapshot.val();
-                gamingPlatform.log.info("matchesJson=", matchesJson);
+                communityFire.log.info("matchesJson=", matchesJson);
                 if (!matchesJson) {
                     main.matches = createCommunityMatches();
                     storeMatches();
@@ -36,9 +36,9 @@ var gamingPlatform;
         main.indexToChatMsgs = [];
         var chatRef = firebase.database().ref("indexToChatMsgs");
         chatRef.on('value', function (snapshot) {
-            gamingPlatform.$timeout(function () {
+            communityFire.$timeout(function () {
                 main.indexToChatMsgs = snapshot.val();
-                gamingPlatform.log.info("indexToChatMsgs=", main.indexToChatMsgs);
+                communityFire.log.info("indexToChatMsgs=", main.indexToChatMsgs);
                 if (!main.indexToChatMsgs)
                     main.indexToChatMsgs = [];
             });
@@ -63,24 +63,17 @@ var gamingPlatform;
         }
         function createCommunityMatches() {
             return [
-                createCommunityMatch("Greendale"),
-                createCommunityMatch("Walla Walla"),
-                createCommunityMatch("Santa Barbara"),
-                createCommunityMatch("Valencia"),
+                createCommunityMatch(),
+                createCommunityMatch(),
+                createCommunityMatch(),
+                createCommunityMatch(),
             ];
         }
-        function createCommunityMatch(matchName) {
+        function createCommunityMatch() {
             return {
-                matchName: matchName,
-                numberOfPlayers: 2,
-                stateBeforeMove: null,
-                turnIndexBeforeMove: 0,
-                move: {
-                    endMatchScores: null,
-                    turnIndexAfterMove: 0,
-                    stateAfterMove: null,
-                },
-                playerIdToProposal: {},
+                endMatchScores: null,
+                turnIndex: 0,
+                state: null,
             };
         }
         function isInPage(page) {
@@ -94,16 +87,16 @@ var gamingPlatform;
             return isInPage("/playGame/");
         }
         function showGameIframe() {
-            return isInPagePlayGame() && gamingPlatform.messageSender.didGetGameReady();
+            return isInPagePlayGame() && communityFire.messageSender.didGetGameReady();
         }
         main.showGameIframe = showGameIframe;
         function changePage(hash) {
             var currentLocation = location.hash.substring(1); // to remove "#"
-            gamingPlatform.log.info("changePage from " + currentLocation + " to " + hash);
+            communityFire.log.info("changePage from " + currentLocation + " to " + hash);
             if (currentLocation === hash) {
                 return;
             }
-            gamingPlatform.$location.path(hash);
+            communityFire.$location.path(hash);
             window.scrollTo(0, 0);
         }
         main.changePage = changePage;
@@ -136,7 +129,7 @@ var gamingPlatform;
         }
         main.toggleChat = toggleChat;
         function isYourTurn(match) {
-            return match.move.turnIndexAfterMove == main.myCommunityPlayerIndex &&
+            return match.turnIndex == main.myCommunityPlayerIndex &&
                 !match.playerIdToProposal[main.myPlayerInfo.playerId];
         }
         main.isYourTurn = isYourTurn;
@@ -148,7 +141,7 @@ var gamingPlatform;
         function loadMatch(matchIndex) {
             var match = main.matches[matchIndex];
             if (!match || !main.myPlayerInfo) {
-                gamingPlatform.log.warn("Couldn't find matchIndex=", matchIndex);
+                communityFire.log.warn("Couldn't find matchIndex=", matchIndex);
                 changePage('/main');
                 return;
             }
@@ -156,64 +149,55 @@ var gamingPlatform;
             sendCommunityUI();
         }
         main.loadMatch = loadMatch;
-        var lastCommunityUI = null;
+        var lastUpdateUI = null;
         function sendCommunityUI() {
-            var match = main.matches[currentMatchIndex];
-            var communityUI = {
+            var move = main.matches[currentMatchIndex];
+            var updateUI = {
+                endMatchScores: move.endMatchScores,
+                turnIndex: move.turnIndex,
+                state: move.state,
+                numberOfPlayers: 2,
+                playerIdToProposal: {},
+                numberOfPlayersRequiredToMove: 1,
+                playersInfo: [],
+                playMode: main.myCommunityPlayerIndex,
                 yourPlayerIndex: main.myCommunityPlayerIndex,
                 yourPlayerInfo: main.myPlayerInfo,
-                playerIdToProposal: match.playerIdToProposal,
-                numberOfPlayers: match.numberOfPlayers,
-                stateBeforeMove: match.stateBeforeMove,
-                turnIndexBeforeMove: match.turnIndexBeforeMove,
-                move: match.move,
             };
-            gamingPlatform.log.info("sendCommunityUI: ", communityUI);
-            lastCommunityUI = communityUI;
-            gamingPlatform.messageSender.sendToGame({ communityUI: communityUI });
+            communityFire.log.info("sendCommunityUI: ", updateUI);
+            lastUpdateUI = updateUI;
+            communityFire.messageSender.sendToGame({ updateUI: updateUI });
         }
         window.addEventListener("message", function (event) {
             var game_iframe = window.document.getElementById("game_iframe");
             if (!game_iframe || game_iframe.contentWindow !== event.source) {
                 return;
             }
-            gamingPlatform.$rootScope.$apply(function () {
+            communityFire.$rootScope.$apply(function () {
                 var message = event.data;
-                gamingPlatform.log.info("Platform got message:", message);
+                communityFire.log.info("Platform got message:", message);
                 if (message.gameReady) {
-                    if (gamingPlatform.messageSender.didGetGameReady()) {
-                        gamingPlatform.log.warn("Game sent gameReady before (look at the logs)! You can only send gameReady once.");
+                    if (communityFire.messageSender.didGetGameReady()) {
+                        communityFire.log.warn("Game sent gameReady before (look at the logs)! You can only send gameReady once.");
                         return;
                     }
-                    gamingPlatform.messageSender.gotGameReady();
+                    communityFire.messageSender.gotGameReady();
                     return;
                 }
-                // {communityMove: { proposal: proposal, move: move, lastCommunityUI: lastCommunityUI }
-                var communityMove = message.communityMove;
-                if (!communityMove) {
-                    gamingPlatform.log.info("Not a communityMove!");
+                var move = message.move;
+                //let proposal: IProposal = message.proposal;
+                if (!angular.equals(message.lastMessage.updateUI, lastUpdateUI)) {
+                    communityFire.log.error("This move belongs to an old communityUI! lastUpdateUI=\n" +
+                        angular.toJson(lastUpdateUI, true) + " message.lastMessage.updateUI=\n" +
+                        angular.toJson(message.lastMessage.updateUI, true));
                     return;
                 }
-                if (!angular.equals(communityMove.lastCommunityUI, lastCommunityUI)) {
-                    gamingPlatform.log.error("This move belongs to an old communityUI! lastCommunityUI=\n" +
-                        angular.toJson(lastCommunityUI, true) + " communityMove.lastCommunityUI=\n" +
-                        angular.toJson(communityMove.lastCommunityUI, true));
-                    return;
-                }
-                var proposal = communityMove.proposal;
-                var move = communityMove.move;
                 var match = main.matches[currentMatchIndex];
-                var chatMsg = { chat: "Played the move: " + proposal.chatDescription, fromPlayer: proposal.playerInfo };
+                var chatMsg = { chat: "Played a move", fromPlayer: main.myPlayerInfo };
                 addChatMsg(chatMsg);
-                if (move) {
-                    match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
-                    match.stateBeforeMove = match.move.stateAfterMove;
-                    match.playerIdToProposal = {};
-                    match.move = move;
-                }
-                else {
-                    match.playerIdToProposal[main.myPlayerInfo.playerId] = proposal;
-                }
+                match.turnIndex = move.turnIndex;
+                match.state = move.state;
+                match.endMatchScores = move.endMatchScores;
                 storeMatches();
                 sendCommunityUI();
             });
@@ -226,9 +210,9 @@ var gamingPlatform;
                 var token = result.credential.accessToken;
                 // The signed-in user info.
                 var user = result.user;
-                gamingPlatform.log.info("Google login succeeded: ", token, user);
+                communityFire.log.info("Google login succeeded: ", token, user);
             }).catch(function (error) {
-                gamingPlatform.log.error("Google login failed: ", error);
+                communityFire.log.error("Google login failed: ", error);
             });
         }
         main.googleLogin = googleLogin;
@@ -241,9 +225,9 @@ var gamingPlatform;
                 displayName: user.displayName,
                 playerId: user.uid,
             };
-            gamingPlatform.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
-            if (gamingPlatform.$rootScope)
-                gamingPlatform.$rootScope.$apply();
+            communityFire.log.alwaysLog("myPlayerInfo=", main.myPlayerInfo);
+            if (communityFire.$rootScope)
+                communityFire.$rootScope.$apply();
         });
         angular.module('MyApp', ['ngMaterial', 'ngRoute'])
             .config(['$routeProvider', function ($routeProvider) {
@@ -263,7 +247,7 @@ var gamingPlatform;
             .controller('PlayGameCtrl', ['$routeParams',
             function ($routeParams) {
                 var matchIndex = $routeParams["matchIndex"];
-                gamingPlatform.log.info("PlayGameCtrl matchIndex=", matchIndex);
+                communityFire.log.info("PlayGameCtrl matchIndex=", matchIndex);
                 loadMatch(matchIndex);
             }])
             .run([
@@ -277,20 +261,20 @@ var gamingPlatform;
             '$templateCache',
             function (_timeout, _interval, _interpolate, _http, _location, _rootScope, _route, _sce, _templateCache) {
                 if (_templateCache.get('html-templates/mainPage.html')) {
-                    gamingPlatform.log.error("Missing html-templates/mainPage.html in $templateCache");
+                    communityFire.log.error("Missing html-templates/mainPage.html in $templateCache");
                 }
-                gamingPlatform.$timeout = _timeout;
-                gamingPlatform.$interval = _interval;
-                gamingPlatform.$interpolate = _interpolate;
-                gamingPlatform.$http = _http;
-                gamingPlatform.$location = _location;
-                gamingPlatform.$rootScope = _rootScope;
-                gamingPlatform.$route = _route;
-                gamingPlatform.$sce = _sce; // It's module-specific, or else I get: Error: [$sce:unsafe] Attempting to use an unsafe value in a safe context.
-                gamingPlatform.log.alwaysLog("Angular loaded!");
-                gamingPlatform.$rootScope['main'] = main;
+                communityFire.$timeout = _timeout;
+                communityFire.$interval = _interval;
+                communityFire.$interpolate = _interpolate;
+                communityFire.$http = _http;
+                communityFire.$location = _location;
+                communityFire.$rootScope = _rootScope;
+                communityFire.$route = _route;
+                communityFire.$sce = _sce; // It's module-specific, or else I get: Error: [$sce:unsafe] Attempting to use an unsafe value in a safe context.
+                communityFire.log.alwaysLog("Angular loaded!");
+                communityFire.$rootScope['main'] = main;
             }
         ]);
-    })(main = gamingPlatform.main || (gamingPlatform.main = {}));
-})(gamingPlatform || (gamingPlatform = {}));
+    })(main = communityFire.main || (communityFire.main = {}));
+})(communityFire || (communityFire = {}));
 //# sourceMappingURL=main.js.map

@@ -1,5 +1,5 @@
-var gamingPlatform;
-(function (gamingPlatform) {
+var communityFire;
+(function (communityFire) {
     var log;
     (function (log_1) {
         var ILogLevel = (function () {
@@ -90,6 +90,6 @@ var gamingPlatform;
             storeLog(args, ILogLevel.LOG, console.log);
         }
         log_1.log = log;
-    })(log = gamingPlatform.log || (gamingPlatform.log = {}));
-})(gamingPlatform || (gamingPlatform = {}));
+    })(log = communityFire.log || (communityFire.log = {}));
+})(communityFire || (communityFire = {}));
 //# sourceMappingURL=log.js.map

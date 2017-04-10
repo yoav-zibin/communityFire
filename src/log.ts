@@ -1,4 +1,4 @@
-namespace gamingPlatform {
+namespace communityFire {
 export module log {
   class ILogLevel {
     static ALWAYS: string = 'ALWAYS';

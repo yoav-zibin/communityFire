@@ -1,46 +1,9 @@
-namespace gamingPlatform {
-  interface IMove {
-  endMatchScores: number[];
-  turnIndexAfterMove: number;
-  stateAfterMove: any;
-}
-interface IStateTransition {
-  turnIndexBeforeMove : number;
-  stateBeforeMove: any;
-  numberOfPlayers: number;
-  move: IMove;
-}
-interface IPlayerInfo {
-  avatarImageUrl: string;
-  displayName: string;
-  playerId: string;
-}
-interface ICommonUI extends IStateTransition {
-  // -2 is a viewer; otherwise it's the player index (0/1).
-  yourPlayerIndex: number;
-}
-// Proposals are used in community games: each player may submit a proposal, and the game will eventual selected
-// the winning proposal and convert it to a move.
-interface ICommunityUI extends ICommonUI {
-  // You need to know your playerId to make sure you only make one proposal,
-  // i.e., if (playerIdToProposal[yourPlayerId]) then you can't make another proposal.
-  yourPlayerInfo: IPlayerInfo; 
-  // Mapping playerId to his proposal.
-  playerIdToProposal: IProposals; 
-}
-interface IProposal {
-  playerInfo: IPlayerInfo; // the player making the proposal.
-  chatDescription: string; // string representation of the proposal that will be shown in the community game chat.
-  data: any; // IProposalData must be defined by the game.
-}
-interface IProposals {
-  [playerId: string]: IProposal;
-}
+type IState = any;
+type IProposalData = any;
+interface SupportedLanguages { en: string }
 
-interface ICommunityMatch extends IStateTransition {
-  matchName: string;
-  playerIdToProposal: IProposals; 
-}
+namespace communityFire {
+
 interface ChatMsg {
   chat: string;
   fromPlayer: IPlayerInfo;
@@ -68,7 +31,7 @@ export module main {
     messagingSenderId: "308144322392"
   };
   firebase.initializeApp(config);
-  export let matches: ICommunityMatch[] = [];
+  export let matches: IMove[] = [];
   // Saving as json because firebase has restriction on keys (and we use "data: any").
   // Example error: Firebase.set failed: First argument  contains an invalid key (playerId0.5446834512026781) in property 'matches.0.playerIdToProposal'.  Keys must be non-empty strings and can't contain ".", "#", "$", "/", "[", or "]"
   // Another weird thing: For some reason firebase stores "{}" as null (for playerIdToProposal).
@@ -119,26 +82,19 @@ export module main {
     chatRef.set(indexToChatMsgs);
   }
 
-  function createCommunityMatches(): ICommunityMatch[] {
+  function createCommunityMatches(): IMove[] {
     return [
-      createCommunityMatch("Greendale"),
-      createCommunityMatch("Walla Walla"),
-      createCommunityMatch("Santa Barbara"),
-      createCommunityMatch("Valencia"),
+      createCommunityMatch(),
+      createCommunityMatch(),
+      createCommunityMatch(),
+      createCommunityMatch(),
     ];
   }
-  function createCommunityMatch(matchName: string): ICommunityMatch {
+  function createCommunityMatch(): IMove {
     return {
-      matchName: matchName,
-      numberOfPlayers: 2,
-      stateBeforeMove: null,
-      turnIndexBeforeMove: 0,
-      move: {
-        endMatchScores: null,
-        turnIndexAfterMove: 0,
-        stateAfterMove: null, 
-      },
-      playerIdToProposal: {},
+      endMatchScores: null,
+      turnIndex: 0,
+      state: null, 
     };
   }
   
@@ -192,8 +148,8 @@ export module main {
     isChatShowing = !isChatShowing;
   }
   
-  export function isYourTurn(match: ICommunityMatch) {
-    return match.move.turnIndexAfterMove == myCommunityPlayerIndex &&
+  export function isYourTurn(match: IUpdateUI) {
+    return match.turnIndex == myCommunityPlayerIndex &&
         !match.playerIdToProposal[myPlayerInfo.playerId];
   }
 
@@ -212,21 +168,24 @@ export module main {
     sendCommunityUI();
   }
 
-  let lastCommunityUI: ICommunityUI = null;
+  let lastUpdateUI: IUpdateUI = null;
   function sendCommunityUI() {
-    let match = matches[currentMatchIndex];
-    let communityUI: ICommunityUI = {
+    let move = matches[currentMatchIndex];
+    let updateUI:IUpdateUI = {
+      endMatchScores: move.endMatchScores,
+      turnIndex: move.turnIndex,
+      state: move.state, 
+      numberOfPlayers: 2,
+      playerIdToProposal: {},
+      numberOfPlayersRequiredToMove: 1,
+      playersInfo: [],
+      playMode: myCommunityPlayerIndex,
       yourPlayerIndex: myCommunityPlayerIndex,
       yourPlayerInfo: myPlayerInfo,
-      playerIdToProposal: match.playerIdToProposal,
-      numberOfPlayers: match.numberOfPlayers,
-      stateBeforeMove: match.stateBeforeMove,
-      turnIndexBeforeMove: match.turnIndexBeforeMove,
-      move: match.move,
     }
-    log.info("sendCommunityUI: ", communityUI);
-    lastCommunityUI = communityUI;
-    messageSender.sendToGame({communityUI: communityUI});
+    log.info("sendCommunityUI: ", updateUI);
+    lastUpdateUI = updateUI;
+    messageSender.sendToGame({updateUI: updateUI});
   }
 
   window.addEventListener("message", function (event) {
@@ -246,32 +205,20 @@ export module main {
         return;
       }
 
-      // {communityMove: { proposal: proposal, move: move, lastCommunityUI: lastCommunityUI }
-      let communityMove: any = message.communityMove;
-      if (!communityMove) {
-        log.info("Not a communityMove!");
-        return;
-      } 
-      if (!angular.equals(communityMove.lastCommunityUI, lastCommunityUI)) {
-        log.error("This move belongs to an old communityUI! lastCommunityUI=\n" + 
-            angular.toJson(lastCommunityUI, true) + " communityMove.lastCommunityUI=\n" +
-            angular.toJson(communityMove.lastCommunityUI, true) );
+      let move: IMove = message.move;
+      //let proposal: IProposal = message.proposal;
+      if (!angular.equals(message.lastMessage.updateUI, lastUpdateUI)) {
+        log.error("This move belongs to an old communityUI! lastUpdateUI=\n" + 
+            angular.toJson(lastUpdateUI, true) + " message.lastMessage.updateUI=\n" +
+            angular.toJson(message.lastMessage.updateUI, true) );
         return;
       }
-      let proposal: IProposal = communityMove.proposal;
-      let move: IMove = communityMove.move;
-
       let match = matches[currentMatchIndex];
-      let chatMsg:ChatMsg = {chat: "Played the move: " + proposal.chatDescription, fromPlayer: proposal.playerInfo};
+      let chatMsg:ChatMsg = {chat: "Played a move", fromPlayer: myPlayerInfo};
       addChatMsg(chatMsg);
-      if (move) {
-        match.turnIndexBeforeMove = match.move.turnIndexAfterMove;
-        match.stateBeforeMove = match.move.stateAfterMove;
-        match.playerIdToProposal = {};
-        match.move = move;
-      } else {
-        match.playerIdToProposal[myPlayerInfo.playerId] = proposal;
-      }
+      match.turnIndex = move.turnIndex;
+      match.state = move.state;
+      match.endMatchScores = move.endMatchScores;
       storeMatches();
       sendCommunityUI();
     });

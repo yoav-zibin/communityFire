@@ -1,6 +1,6 @@
 // Sends messages to game iframe (and buffers these messages until the game sends GameReady)
-var gamingPlatform;
-(function (gamingPlatform) {
+var communityFire;
+(function (communityFire) {
     var messageSender;
     (function (messageSender) {
         var waitingMsgs = [];
@@ -8,7 +8,7 @@ var gamingPlatform;
         function sendToGame(msg) {
             // If not ready, then we'll send it later
             if (!canPassMessages()) {
-                gamingPlatform.log.info("After getting gameReady, we will send: ", msg);
+                communityFire.log.info("After getting gameReady, we will send: ", msg);
                 waitingMsgs.push(msg);
                 return;
             }
@@ -16,7 +16,7 @@ var gamingPlatform;
         }
         messageSender.sendToGame = sendToGame;
         function passMessage(msg) {
-            gamingPlatform.log.info("Platform sent to game: ", msg);
+            communityFire.log.info("Platform sent to game: ", msg);
             var iframe = window.document.getElementById("game_iframe");
             iframe.contentWindow.postMessage(msg, "*");
         }
@@ -45,6 +45,6 @@ var gamingPlatform;
         function canPassMessages() {
             return gameIsReady;
         }
-    })(messageSender = gamingPlatform.messageSender || (gamingPlatform.messageSender = {}));
-})(gamingPlatform || (gamingPlatform = {}));
+    })(messageSender = communityFire.messageSender || (communityFire.messageSender = {}));
+})(communityFire || (communityFire = {}));
 //# sourceMappingURL=messageSender.js.map

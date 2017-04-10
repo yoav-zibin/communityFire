@@ -99,7 +99,7 @@
       <md-list-item 
           ng-click="main.gotoPlayPage($index)" 
           ng-repeat="match in main.matches track by $index">
-        <p>{{match.matchName}} {{main.isYourTurn(match) ? "(your turn)" : ""}}</p>
+        <p>Community match {{$index + 1}} {{main.isYourTurn(match) ? "(your turn)" : ""}}</p>
       </md-list-item>
     </md-list>
   </md-content>

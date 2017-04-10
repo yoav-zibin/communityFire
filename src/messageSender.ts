@@ -1,5 +1,5 @@
 // Sends messages to game iframe (and buffers these messages until the game sends GameReady)
-namespace gamingPlatform {
+namespace communityFire {
 export module messageSender {
   let waitingMsgs: any[] = [];
   let gameIsReady: boolean = false;
